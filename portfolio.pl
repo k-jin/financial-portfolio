@@ -1,4 +1,5 @@
-#!/usr/bin/perl -
+#!/usr/bin/perl -w
+
 #
 #
 # rwb.pl (Red, White, and Blue)
@@ -79,12 +80,11 @@ use Time::ParseDate;
 #
 # You need to override these for access to your database
 #
-
 my $dbuser="jrp338";
 my $dbpasswd="zp97npGDx";
 
 
-
+#
 # The session cookie will contain the user's name and password so that 
 # he doesn't have to type it again and again. 
 #
@@ -138,7 +138,7 @@ if (defined(param("act"))) {
 
 my $dstr;
 
-f (defined(param("debug"))) { 
+if (defined(param("debug"))) { 
   # parameter has priority over cookie
   if (param("debug") == 0) { 
     $debug = 0;
@@ -146,7 +146,7 @@ f (defined(param("debug"))) {
     $debug = 1;
   }
 } else {
- if (defined($inputdebugcookiecontent)) { 
+  if (defined($inputdebugcookiecontent)) { 
     $debug = $inputdebugcookiecontent;
   } else {
     # debug default from script
@@ -155,7 +155,7 @@ f (defined(param("debug"))) {
 
 $outputdebugcookiecontent=$debug;
 
-
+#
 #
 # Who is this?  Use the cookie or anonymous credentials
 #
