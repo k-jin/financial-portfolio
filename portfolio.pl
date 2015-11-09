@@ -132,7 +132,7 @@ if (defined(param("act"))) {
     $run = 0;
   }
 } else {
-  $action="base";
+  $action="login";
   $run = 1;
 }
 
@@ -304,9 +304,8 @@ if ($action eq "login") {
   } 
   if ($logincomplain or !$run) { 
     print start_form(-name=>'Login'),
-      h2('Login to Red, White, and Blue'),
-	"Name:",textfield(-name=>'user'),	p,
-	  "Email",textfield(-name=>'email'),p,
+      h2('Login to Financial Portfolio'),
+	"Username:",textfield(-name=>'username'),p,
 	  "Password:",password_field(-name=>'password'),p,
 	    hidden(-name=>'act',default=>['login']),
 	      hidden(-name=>'run',default=>['1']),
@@ -326,35 +325,12 @@ if ($action eq "login") {
 #
 if ($action eq "base") { 
   #
-  # Google maps API, needed to draw the map
-  #
-
-  print "<script src=\"http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js\" type=\"text/javascript\"></script>";
-  print "<script src=\"http://maps.google.com/maps/api/js?sensor=false\" type=\"text/javascript\"></script>";
-  #
   # The Javascript portion of our app
   #
   print "<script type=\"text/javascript\" src=\"rwb.js\"> </script>";
 
 
 
-  #
-  #
-  # And something to color (Red, White, or Blue)
-  #
-  print "<div id=\"color\" style=\"width:100\%; height:10\%\"></div>";
-
-  #
-  #
-  # And a map which will be populated later
-  #
-  print "<div id=\"map\" style=\"width:100\%; height:80\%\"></div>";
-  
-    
-  #
-  # And a div to populate with info about nearby stuff
-  #
-  #
   if ($debug) {
     # visible if we are debugging
     print "<div id=\"data\" style=\:width:100\%; height:10\%\"></div>";
