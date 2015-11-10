@@ -654,8 +654,8 @@ sub AddPortfolio {
 		"insert into portfolios (account_name, portfolio_name, cash) values (?,?,?)",undef,@_);};  
 }
 
-# DropPortfolio($account_name, $portfolio_name)
-sub DropPortfolio {
+# DeletePortfolio($account_name, $portfolio_name)
+sub DeletePortfolio {
   eval {ExecSQL($dbuser,$dbpasswd,
 		"delete from portfolios where account_name=? and portfolio_name=?",undef,@_);};
 }
@@ -664,6 +664,18 @@ sub DropPortfolio {
 sub BuyStock {
   eval {ExecSQL($dbuser,$dbpasswd,
 		"insert into stock_holdings (account_name, portfolio_name, symbol, volume) values (?,?,?,?)",undef,@_);};
+}
+
+# SellStock($account_name, $portfolio_name, $symbol)
+sub SellStock {
+  eval {ExecSQL($dbuser,$dbpasswd,
+		"delete from stock_holdings where account_name=? and portfolio_name=? and symbol=?",undef,@_);};
+}
+
+# AddStockInfo($symbol, $timestamp, $open, $high, $low, $close, $volume)
+sub AddStockInfo {
+  eval {ExecSQL($dbuser,$dbpasswd,
+		"insert into stock_infos (symbol, timestamp, open, high, low, close, volume) values (?,?,?,?,?,?,?)",undef,@_);};
 }
 
 sub UserAdd { 
