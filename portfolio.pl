@@ -52,8 +52,8 @@ use Time::ParseDate;
 #
 # You need to override these for access to your database
 #
-my $dbuser="jrp338";
-my $dbpasswd="zp97npGDx";
+my $dbuser="kqj094";
+my $dbpasswd="zjsmqM31Y";
 
 
 #
@@ -311,14 +311,15 @@ if ($action eq "base") {
   }
 
   print "<h1>My Portfolio</h1>";
-  print "<button type='add_portfolio'>Add Portfolio</button>"
-  print "<button type='delete_portfolio'>Delete Portfolio</button>"
-  print "<button type='logout'>Logout</button>"
+  print "<button type='add_portfolio'>Add Portfolio</button>";
+  print "<button type='delete_portfolio'>Delete Portfolio</button>";
+  print "<button type='logout'>Logout</button>";
 
   my $sql_st = "select * from portfolios where account_name=?"; 
-  my @my_portfolios = ExecSQL($dbuser,$dbpasswd,$sql_st,undef,$user)
+  my @my_portfolios = ExecSQL($dbuser,$dbpasswd,$sql_st,undef,$user);
 
-  for (my $i=0; $i<@my_portfolios;$i+=1){
+  # TODO: I changed @my_portfolios to $my_portfolios and $i+=1 to $i++
+  for (my $i=0; $i < scalar @my_portfolios;$i++){
        print "<p>$my_portfolios[$i]</p>";
   }
 
@@ -365,14 +366,14 @@ if($action eq "delete_portfolio"){
                    end_form,
                      hr;
   } else{
-    my $portfolio_name = param('name');
+    my $del_portfolio_name = param('name');
     my $error;
-    $error = DeletePortfolio($user,$portfolio_name);
+    $error = DeletePortfolio($user,$del_portfolio_name);
     if ($error){
       print "Can't delete portfolio because: $error";
     }
     else {
-      print "Deleted $portfolio_name successfully";
+      print "Deleted $del_portfolio_name successfully";
     }
   }
   print "<p><a href='portfolio.pl?act=base&run=1'>Return to Home page</a></p>";
@@ -647,20 +648,20 @@ sub UserTable {
 
 
 
-# PortfolioAdd($account_name, $portfolio_name, $cash)
-sub PortfolioAdd {
+# AddPortfolio($account_name, $portfolio_name, $cash)
+sub AddPortfolio {
   eval {ExecSQL($dbuser,$dbpasswd,
 		"insert into portfolios (account_name, portfolio_name, cash) values (?,?,?)",undef,@_);};  
 }
 
-# PortfolioDrop($account_name, $portfolio_name)
-sub PortfolioDrop {
-  eval {ExecSQL($dbuser,$dbpassd,
+# DropPortfolio($account_name, $portfolio_name)
+sub DropPortfolio {
+  eval {ExecSQL($dbuser,$dbpasswd,
 		"delete from portfolios where account_name=? and portfolio_name=?",undef,@_);};
 }
 
-# StockAdd($account_name, $portfolio_name, $symbol, $volume)
-sub StockAdd {
+# BuyStock($account_name, $portfolio_name, $symbol, $volume)
+sub BuyStock {
   eval {ExecSQL($dbuser,$dbpasswd,
 		"insert into stock_holdings (account_name, portfolio_name, symbol, volume) values (?,?,?,?)",undef,@_);};
 }
