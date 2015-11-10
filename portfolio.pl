@@ -646,6 +646,54 @@ sub UserTable {
 }
 
 
+
+# PortfolioAdd($account_name, $portfolio_name, $cash)
+sub PortfolioAdd {
+  eval {ExecSQL($dbuser,$dbpasswd,
+		"insert into portfolios (account_name, portfolio_name, cash) values (?,?,?)",undef,@_);};  
+}
+
+# PortfolioDrop($account_name, $portfolio_name)
+sub PortfolioDrop {
+  eval {ExecSQL($dbuser,$dbpassd,
+		"delete from portfolios where account_name=? and portfolio_name=?",undef,@_);};
+}
+
+# StockAdd($account_name, $portfolio_name, $symbol, $volume)
+sub StockAdd {
+  eval {ExecSQL($dbuser,$dbpasswd,
+		"insert into stock_holdings (account_name, portfolio_name, symbol, volume) values (?,?,?,?)",undef,@_);};
+}
+
+sub UserAdd { 
+  eval { ExecSQL($dbuser,$dbpasswd,
+		 "insert into rwb_users (name,password,email,referer) values (?,?,?,?)",undef,@_);};
+  return $@;
+}
+
+sub InsertOpinion{
+  
+  eval { ExecSQL($dbuser,$dbpasswd,
+		 "insert into rwb_opinions (submitter,color,latitude,longitude) values (?,?,?,?)",undef,@_);};
+  return $@;
+}
+
+#InsertInvitee($name, $email, $user)
+#helper function for UserInvite
+sub InsertInvitee{
+  
+  eval { ExecSQL($dbuser,$dbpasswd,
+		 "insert into rwb_invitees (name,id,email,referer) values (?,?,?,?)",undef,@_);};
+  return $@;
+}
+
+sub InsertInviteePermissions{
+  
+  eval { ExecSQL($dbuser,$dbpasswd,
+		 "insert into rwb_invitee_permissions (name,email,id,action) values (?,?,?,?)",undef,@_);};
+  return $@;
+}
+
 sub ValidUser {
   my ($user,$email,$password)=@_;
   my @col;
