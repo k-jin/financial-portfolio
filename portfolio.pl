@@ -1226,14 +1226,24 @@ sub UserPermTable {
   }
 }
 
-#
-# Add a user
-# call with name,password,email
-#
-# returns false on success, error string on failure.
-# 
-# UserAdd($name,$password,$email)
-#
+# PortfolioAdd($account_name, $portfolio_name, $cash)
+sub PortfolioAdd {
+  eval {ExecSQL($dbuser,$dbpasswd,
+		"insert into portfolios (account_name, portfolio_name, cash) values (?,?,?)",undef,@_);};  
+}
+
+# PortfolioDrop($account_name, $portfolio_name)
+sub PortfolioDrop {
+  eval {ExecSQL($dbuser,$dbpassd,
+		"delete from portfolios where account_name=? and portfolio_name=?",undef,@_);};
+}
+
+# StockAdd($account_name, $portfolio_name, $symbol, $volume)
+sub StockAdd {
+  eval {ExecSQL($dbuser,$dbpasswd,
+		"insert into stock_holdings (account_name, portfolio_name, symbol, volume) values (?,?,?,?)",undef,@_);};
+}
+
 sub UserAdd { 
   eval { ExecSQL($dbuser,$dbpasswd,
 		 "insert into rwb_users (name,password,email,referer) values (?,?,?,?)",undef,@_);};

@@ -6,6 +6,7 @@ Actions for accounts:
 Actions for portfolios:
 
 	- INSERT INTO portfolios (an_account_name, a_porfolio_name, some_cash);
+	- DELETE FROM portfolios WHERE account_name=? AND portfolio_name=?;
 	- SELECT portfolio_name FROM portfolios WHERE account_name=?;
 
 Actions for stock_holdings:
