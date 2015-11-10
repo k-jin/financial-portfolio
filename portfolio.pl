@@ -695,9 +695,9 @@ sub InsertInviteePermissions{
 }
 
 sub ValidUser {
-  my ($user,$email,$password)=@_;
+  my ($user,$password)=@_;
   my @col;
-  eval {@col=ExecSQL($dbuser,$dbpasswd, "select count(*) from rwb_users where name=? and email = ? and password=?","COL",$user,$email,$password);};
+  eval {@col=ExecSQL($dbuser,$dbpasswd, "select count(*) from accounts where account_name=? and password=?","COL",$user,$password);};
   if ($@) { 
     return 0;
   } else {

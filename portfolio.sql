@@ -1,11 +1,11 @@
 CREATE TABLE accounts (
   account_name VARCHAR2(64) NOT NULL PRIMARY KEY,
   password VARCHAR2(64) NOT NULL,
-  CONSTRAINT long_passwd CHECK (password LIKE '________%'),
+  CONSTRAINT long_password CHECK (password LIKE '________%')
 );
 
 CREATE TABLE portfolios (
-  account_name VARCHAR2(64) NOT NULL CONSTRAINT account_fk REFERENCES accounts(account_name) ON DELETE CASCADE,
+  account_name VARCHAR2(64) NOT NULL CONSTRAINT account_fk REFERENCES accounts (account_name) ON DELETE CASCADE,
   portfolio_name VARCHAR2(64) NOT NULL,
   cash NUMBER NOT NULL,
   CONSTRAINT portfolio_pk PRIMARY KEY (account_name, portfolio_name)
@@ -16,7 +16,7 @@ CREATE TABLE stock_holdings (
   portfolio_name VARCHAR2(64) NOT NULL,
   symbol VARCHAR(64) NOT NULL,
   volume NUMBER NOT NULL,
-  CONSTRAINT stock_holdings_fk FOREIGN KEY (account_name, portfolio_name) REFERENCES portfolios(account_name, portfolio_name) ON DELETE CASCADE,
+  CONSTRAINT stock_holdings_fk FOREIGN KEY (account_name, portfolio_name) REFERENCES portfolios (account_name, portfolio_name) ON DELETE CASCADE,
   CONSTRAINT stock_holdings_pk PRIMARY KEY (account_name, portfolio_name, symbol)
 );
 
