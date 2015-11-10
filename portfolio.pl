@@ -264,7 +264,7 @@ print header(-expires=>'now', -cookie=>\@outputcookies);
 #print start_html('Red, White, and Blue');
 print "<html style=\"height: 100\%\">";
 print "<head>";
-print "<title>Red, White, and Blue</title>";
+print "<title>Financial Portfolio</title>";
 print "</head>";
 
 print "<body style=\"height:100\%;margin:0\">";
