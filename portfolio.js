@@ -268,27 +268,6 @@ ViewShift = function() {
 			what: what,
 			cycle: what_cycles
 		}, NewData);
-	$.get("rwb.pl",
-                {
-                        act:    "aggreg",
-                        latne:  ne.lat(),
-                        longne: ne.lng(),
-                        latsw:  sw.lat(),
-                        longsw: sw.lng(),
-                        what: what,
-                        cycle: what_cycles
-                }, UpdateCommAggreg);	
-	
-	$.get("rwb.pl",
-                {
-                        act:    "aggreg",
-                        latne:  ne.lat(),
-                        longne: ne.lng(),
-                        latsw:  sw.lat(),
-                        longsw: sw.lng(),
-                        what: what,
-                        cycle: what_cycles
-                }, UpdateIndividAggreg);	
 },
 
 
