@@ -52,8 +52,8 @@ use Time::ParseDate;
 #
 # You need to override these for access to your database
 #
-my $dbuser="kqj094";
-my $dbpasswd="zjsmqM31Y";
+my $dbuser="jrp338";
+my $dbpasswd="zp97npGDx";
 
 
 #
@@ -298,7 +298,7 @@ if ($action eq "base") {
   #
   # The Javascript portion of our app
   #
-  print "<script type=\"text/javascript\" src=\"portfolio.js\"> </script>";
+  #print "<script type=\"text/javascript\" src=\"portfolio.js\"> </script>";
 
 
 
@@ -318,8 +318,7 @@ if ($action eq "base") {
   my $sql_st = "select * from portfolios where account_name=?"; 
   my @my_portfolios = ExecSQL($dbuser,$dbpasswd,$sql_st,undef,$user);
 
-  # TODO: I changed @my_portfolios to $my_portfolios and $i+=1 to $i++
-  for (my $i=0; $i < scalar @my_portfolios;$i++){
+  for (my $i=0; $i < @my_portfolios;$i++){
        print "<p>$my_portfolios[$i]</p>";
   }
 
