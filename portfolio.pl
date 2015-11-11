@@ -739,6 +739,7 @@ sub AddStockInfo {
 
 
 # PortfolioStats($symbol, $from, $to, $field)
+# $from and $to format is "1/1/94"
 sub PortfolioStats {
   #$close=1;
   my ($symbol, $field, $from, $to)=@_;
@@ -978,6 +979,19 @@ sub ExecSQL {
 # find its butt
 #
 BEGIN {
+
+  $ENV{PORTF_DBMS}="oracle";
+  $ENV{PORTF_DB}="cs339";
+  $ENV{PORTF_DBUSER}="kqj094";
+  $ENV{PORTF_DBPASS}="zjsmqM31Y";
+  
+  $dbms = $ENV{'PORTF_DBMS'};
+  $user = $ENV{'PORTF_DBUSER'};
+  $pass = $ENV{'PORTF_DBPASS'};
+  $db   = $ENV{'PORTF_DB'};
+ 
+  $ENV{PATH}=$ENV{PATH}.":.";  
+
   unless ($ENV{BEGIN_BLOCK}) {
     use Cwd;
     $ENV{ORACLE_BASE}="/raid/oracle11g/app/oracle/product/11.2.0.1.0";
