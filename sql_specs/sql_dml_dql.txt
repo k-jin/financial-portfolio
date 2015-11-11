@@ -1,0 +1,24 @@
+Actions for accounts:
+
+	- INSERT INTO accounts VALUES (an_account_name, a_password);
+	- SELECT password FROM accounts WHERE account_name=?;
+
+Actions for portfolios:
+
+	- INSERT INTO portfolios (an_account_name, a_porfolio_name, some_cash);
+	- DELETE FROM portfolios WHERE account_name=? AND portfolio_name=?;
+	- SELECT portfolio_name FROM portfolios WHERE account_name=?;
+
+Actions for stock_holdings:
+
+	- INSERT INTO stock_holdings VALUES (an_account_name, a_portfolio_name, a_symbol, some_value);
+	- DELETE FROM stock_holdings WHERE account_name=? AND portfolio_name=? AND symbol=?;
+	- SELECT symbol FROM stock_holdings WHERE account_name=? AND portfolio_name=?;
+	- SELECT volume FROM stock_holdings WHERE account_name=? AND portfolio_name=? AND symbol=?;
+
+Actions for stock_infos:
+
+	- INSERT INTO stock_info (a_symbol, a_timestamp, an_open, a_high, a_low, a_close, a_volume);
+	- SELECT close FROM stock_infos WHERE symbol=? AND timestamp=?;
+	- SELECT * FROM stock_infos WHERE symbol=? AND timestamp=?;
+	- SELECT * FROM stock_infos WHERE symbol=? AND timestamp=? UNION SELECT FROM cs339.StocksDaily WHERE symbol=? AND timestamps=? ORDER BY 1;
