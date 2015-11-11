@@ -84,7 +84,7 @@ my $inputdebugcookiecontent = cookie($debugcookiename);
 my $outputcookiecontent = undef;
 my $outputdebugcookiecontent = undef;
 my $deletecookie=0;
-my $user = undef;
+my $user = "anon" ;
 my $password = undef;
 #my $curr_portfolio_name = undef;
 my $logincomplain=0;
@@ -279,7 +279,7 @@ if ($action eq "back_to_login"){
 }
 if ($action eq "login") { 
   
-  if ($logincomplain and $user ne "anon") { 
+  if ($logincomplain) { #and $user ne "anon") { 
     print "Login failed.  Try again.<p>"
   } 
   if ($logincomplain or !$run) { 
@@ -738,13 +738,24 @@ sub PortfolioStats {
   if (defined $from) {$from=parsedate($from)};
   if (defined $to) {$to=parsedate($to)};
 
-  my $sql = "select count($field), avg($field), min($field), max($field) from (select $field from ".GetStockPrefix()."StocksDaily where symbol=$symbol union all select $field from stock_infos where symbol=$symbol;";
+  my $sql = "select count($field), avg($field), min($field), max($field) from (select $field from ".GetStockPrefix()."StocksDaily where symbol=$symbol union all select $field from stock_infos where symbol=$symbol);";
   $sql.= "and timestamp >=$from" if $from;
   $sql.= "and timestamp <=$to" if $to;
 
   my ($n,$mean,$std,$min,$max) = ExecStockSQL("ROW",$sql);
   return ($symbol, $field, $n, $mean, $std, $min, $max, $std/$mean);
   
+}
+
+# MostRecentPrice($symbol)
+sub MostRecentPrice {
+  my $symbol=@_;
+  my $timestamp_sql = "select max(timestamp) from (select timestamp from ".GetStockPrefix()."StocksDaily where symbol=$symbol union all select timestamp from stock_infos where symbol=$symbol);";
+  my $timestamp = ExecStockSQL("ROW", $timestamp_sql);
+  my $sql = "select close from ".GetStockPrefix()."StocksDaily where symbol=$symbol and timestamp=$timestamp union all select close from stock_infos where symbol=$symbol and timestamp=$timestamp;";
+
+  my $close_price = ExecStockSQL("ROW", $sql);
+  return $close_price;
 }
 
 sub UserAdd { 
