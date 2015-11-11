@@ -1,0 +1,39 @@
+<html>
+<head>
+	<title>Relational Design</title>
+</head>
+<body>
+<h1>Relational Design</h1>
+	<h2>Tables</h2>
+	<p>
+	accounts (<u>account_name</u>: string,
+		password: string)
+	</p>	
+	<p>
+	portfolios (<u>account_name</u>: string,
+		   <u>portfolio_name</u>: string,
+		   cash: integer)
+	</p>
+	<p>
+	stock_holdings (<u>account_name</u>: string,
+			<u>portfolio_name</u>: string,
+			<u>symbol</u>: string,
+			volume: integer)
+	</p>
+	<p>
+	stock_infos (<u>symbol</u>: string,
+		     <u>timestamp</u>: integer,
+			open: integer,
+			high: integer, 
+			low: integer,
+			close: integer,
+			volume: integer)
+	</p>
+	<h2>Functional Dependencies</h2>
+	<h4>account_name &#8594; password</h4>
+	<h4>account_name portfolio_name &#8594; cash</h4>
+	<h4>account_name portfolio_name symbol &#8594; volume </h4>
+	<h4>symbol timestamp &#8594; open high low close volume</h4>
+
+</body>
+</html>
