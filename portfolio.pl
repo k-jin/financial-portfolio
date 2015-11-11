@@ -366,7 +366,7 @@ if($action eq "add_user"){
       print "Added $username successfully";
     }
   }
-  print "<p><a href='portfolio.pl?act=base&run=1'>Return to Home page</a></p>";
+  print "<p><a href='portfolio.pl?act=login'>Return to Home page</a></p>";
 }
 
 if($action eq "add_portfolio"){
