@@ -472,13 +472,40 @@ if($action eq "buy_stock"){
     my $symbol = param('symbol');
     my $volume = param('volume');
     my $portfolio = param('portfolio');
-    my $error;
-    $error = BuyStock($user,$portfolio,$symbol,$volume);
-    if ($error){
-      print "Can't buy stock because: $error";
+    my $errorBuy;
+    my $errorWithdraw;
+    if (ValidPortfolio($user,$portfolio)){ 
+      my $current_amt = AmountOfCash($user,$portfolio);
+      #print "HELLO $symbol";
+      my $needed_amt = MostRecentPrice($symbol);
+      $needed_amt = $needed_amt*$volume;
+     
+      if($current_amt - $needed_amt < 0){
+        print "You do not have enough cash in $portfolio to buy $volume shares of $symbol.";
+      }
+      else{
+        my $curr_stock_num = VolumeOfStock($user,$portfolio,$symbol);
+        if($curr_stock_num >-1){
+          
+          $errorBuy = BuyStockUpdate($user,$portfolio,$symbol,$volume+$curr_stock_num);
+        }
+        else{
+          $errorBuy = BuyStockInsert($user,$portfolio,$symbol,$volume);
+        }
+        $errorWithdraw = WithdrawCash($user,$portfolio,$current_amt-$needed_amt); 
+        if ($errorBuy){
+          print "Can't buy stock because: $errorBuy";
+        }
+        if ($errorWithdraw){
+          print "Can't buy stock because: $errorWithdraw";
+        }
+        else {
+          print "Bought $volume shares of $symbol for $portfolio successfully";
+        }
+      }
     }
     else {
-      print "Bought $volume shares of $symbol for $portfolio successfully";
+      print "$portfolio is not a valid portfolio.";
     }
   }
   print "<p><a href='portfolio.pl?act=base&run=1'>Return to Home page</a></p>";
@@ -500,22 +527,36 @@ if($action eq "sell_stock"){
     my $symbol = param('symbol');
     my $selling_volume = param('volume');
     my $portfolio = param('portfolio');
+    if(ValidPortfolio($user,$portfolio)){
 
-    my $current_volume = VolumeOfStock($user,$portfolio,$symbol);
-    if ($current_volume > -1){
-      if ($current_volume-$selling_volume < 0){
-        print "<p>Selling $current_volume because selling volume is too large.</p>";
-        $selling_volume = $current_volume;
+      my $current_volume = VolumeOfStock($user,$portfolio,$symbol);
+      if ($current_volume > -1){
+        if ($current_volume-$selling_volume < 0){
+          print "<p>Selling $current_volume because selling volume is too large.</p>";
+          $selling_volume = $current_volume;
+        }
+      }
+      my $errorSell;
+      my $errorDeposit;
+      my $current_amt = AmountOfCash($user,$portfolio);
+
+      $errorSell = SellStock($user,$portfolio,$symbol,$current_volume-$selling_volume);
+      my $cashBack = MostRecentPrice($symbol)*$selling_volume;
+      $errorDeposit = DepositCash($user,$portfolio,$cashBack+$current_amt);
+      if ($errorSell){
+        print "Can't sell stock because: $errorSell";
+      }
+      if ($errorDeposit){
+        print "Can't sell stock because: $errorDeposit";
+      }
+      else {
+        print "Sold $selling_volume shares of $symbol successfully";
       }
     }
-    my $error;
-    $error = SellStock($user,$portfolio,$symbol,$current_volume-$selling_volume);
-    if ($error){
-      print "Can't sell stock because: $error";
+    else{
+      print "$portfolio is not a valid portfolio.";
     }
-    else {
-      print "Sold $selling_volume shares of $symbol successfully";
-    }
+
   }
   print "<p><a href='portfolio.pl?act=base&run=1'>Return to Home page</a></p>";
 }
@@ -736,18 +777,25 @@ sub DeletePortfolio {
   return $@;
 }
 
-# BuyStock($account_name, $portfolio_name, $symbol, $volume)
-sub BuyStock {
+# BuyStockInsert($account_name, $portfolio_name, $symbol, $volume)
+sub BuyStockInsert {
   eval {ExecSQL($dbuser,$dbpasswd,
 		"insert into stock_holdings (account_name, portfolio_name, symbol, volume) values (?,?,?,?)","COL",@_);};
   return $@;
 }
 
+# BuyStockUpdate$account_name, $portfolio_name, $symbol, $volume)
+sub BuyStockUpdate {
+  my ($buy_user,$buy_portfolio,$buy_symbol,$buy_volume) = @_;
+  eval {ExecSQL($dbuser,$dbpasswd,
+		"update stock_holdings set volume = ? where account_name=? and portfolio_name=? and symbol=?",undef,$buy_volume,$buy_user,$buy_portfolio,$buy_symbol);};
+  return $@;
+}
 # SellStock($account_name, $portfolio_name, $symbol)
 sub SellStock {
-  my ($user, $portfolio_name, $symbol, $volume) = @_;
+  my ($sell_user, $sell_portfolio, $sell_symbol, $sell_volume) = @_;
   eval {ExecSQL($dbuser,$dbpasswd,
-		"update stock_holdings set volume = ? where account_name=? and portfolio_name=? and symbol=?",undef,$volume,$user,$portfolio_name,$symbol);};
+		"update stock_holdings set volume = ? where account_name=? and portfolio_name=? and symbol=?",undef,$sell_volume,$sell_user,$sell_portfolio,$sell_symbol);};
   return $@;
 }
 
@@ -780,7 +828,7 @@ sub PortfolioStats {
   if (defined $from) {$from=parsedate($from)};
   if (defined $to) {$to=parsedate($to)};
 
-  my $sql = "select count($field), avg($field), min($field), max($field) from (select $field from ".GetStockPrefix()."StocksDaily where symbol=$symbol union all select $field from stock_infos where symbol=$symbol);";
+  my $sql = "select count($field), avg($field), min($field), max($field) from (select $field from ".GetStockPrefix()."StocksDaily where symbol='$symbol' union all select $field from stock_infos where symbol='$symbol');";
   $sql.= "and timestamp >=$from" if $from;
   $sql.= "and timestamp <=$to" if $to;
 
@@ -791,11 +839,11 @@ sub PortfolioStats {
 
 # MostRecentPrice($symbol)
 sub MostRecentPrice {
-  my $symbol=@_;
-  my $timestamp_sql = "select max(timestamp) from (select timestamp from ".GetStockPrefix()."StocksDaily where symbol=$symbol union all select timestamp from stock_infos where symbol=$symbol);";
-  my $timestamp = ExecStockSQL("ROW", $timestamp_sql);
-  my $sql = "select close from ".GetStockPrefix()."StocksDaily where symbol=$symbol and timestamp=$timestamp union all select close from stock_infos where symbol=$symbol and timestamp=$timestamp;";
-
+  my $symbol=$_[0];
+  my $timestamp_sql = "select max(timestamp) from (select timestamp from cs339.StocksDaily where symbol=? union all select timestamp from stock_infos where symbol=?)";
+  #my $timestamp = ExecStockSQL("ROW", $timestamp_sql);
+  my $timestamp = ExecSQL($dbuser,$dbpasswd,$timestamp_sql,"COL",$symbol,$symbol);
+  my $sql = "select close from ".GetStockPrefix()."StocksDaily where symbol='$symbol' and timestamp=$timestamp union all select close from stock_infos where symbol='$symbol' and timestamp=$timestamp";
   my $close_price = ExecStockSQL("ROW", $sql);
   return $close_price;
 }
