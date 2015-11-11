@@ -46,7 +46,7 @@ use DBI;
 # date strings into the unix epoch time (seconds since 1970)
 #
 use Time::ParseDate;
-
+use stock_data_access;
 
 
 #
@@ -698,6 +698,7 @@ sub UserTable {
   }
 }
 
+# AddUser($account_name, $password)
 sub AddUser {
   eval { ExecSQL($dbuser,$dbpasswd,
 		"insert into accounts (account_name, password) values (?,?)",undef,@_);};
@@ -734,6 +735,24 @@ sub SellStock {
 sub AddStockInfo {
   eval {ExecSQL($dbuser,$dbpasswd,
 		"insert into stock_infos (symbol, timestamp, open, high, low, close, volume) values (?,?,?,?,?,?,?)",undef,@_);};
+}
+
+
+# PortfolioStats($symbol, $from, $to, $field)
+sub PortfolioStats {
+  #$close=1;
+  my ($symbol, $field, $from, $to)=@_;
+  if (not defined $field) {$field='close'}; 
+  if (defined $from) {$from=parsedate($from)};
+  if (defined $to) {$to=parsedate($to)};
+
+  my $sql = "select count($field), avg($field), min($field), max($field) from (select $field from ".GetStockPrefix()."StocksDaily where symbol=$symbol union all select $field from stock_infos where symbol=$symbol;";
+  $sql.= "and timestamp >=$from" if $from;
+  $sql.= "and timestamp <=$to" if $to;
+
+  my ($n,$mean,$std,$min,$max) = ExecStockSQL("ROW",$sql);
+  return ($symbol, $field, $n, $mean, $std, $min, $max, $std/$mean);
+  
 }
 
 sub UserAdd { 
