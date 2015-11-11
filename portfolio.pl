@@ -187,10 +187,10 @@ if ($action eq "login") {
 #
 if ($action eq "logout") {
   $deletecookie=1;
-  $action = "login";
+  $action = "back_to_login";
   $user = "anon";
   $password = "anonanon";
-  $run = 1;
+  $run = 0;
 }
 
 
@@ -269,8 +269,12 @@ print "<center>" if !$debug;
 # in the cookie-handling code.  So, here we only show the form if needed
 # 
 #
+#
+if ($action eq "back_to_login"){ 
+    print "<p><a href='portfolio.pl'>Log back in</a></p>";
+}
 if ($action eq "login") { 
-  if ($logincomplain) { 
+  if ($logincomplain and $user ne "anon") { 
     print "Login failed.  Try again.<p>"
   } 
   if ($logincomplain or !$run) { 
@@ -282,6 +286,7 @@ if ($action eq "login") {
 	      hidden(-name=>'run',default=>['1']),
 		submit,
 		  end_form;
+    print "<p><a href='portfolio.pl?act=add_user'>Register</a></p>";
   }
 }
 
@@ -311,19 +316,53 @@ if ($action eq "base") {
   }
 
   print "<h1>My Portfolio</h1>";
-  print "<button type='add_portfolio'>Add Portfolio</button>";
-  print "<button type='delete_portfolio'>Delete Portfolio</button>";
-  print "<button type='logout'>Logout</button>";
+  print "<p>";
+  print "<a href='portfolio.pl?act=add_portfolio'>Add Portfolio | </a>";
+  print "<a href='portfolio.pl?act=delete_portfolio'>Delete Portfolio | </a>";
+  print "<a href='portfolio.pl?act=logout&run=1'>Logout</a></p>";
 
-  my $sql_st = "select * from portfolios where account_name=?"; 
-  my @my_portfolios = ExecSQL($dbuser,$dbpasswd,$sql_st,undef,$user);
-
-  for (my $i=0; $i < @my_portfolios;$i++){
-       print "<p>$my_portfolios[$i]</p>";
+  my ($portfolio_table,$error);
+  ($portfolio_table,$error)=PortfolioTable($user);
+  if(!$error){
+    print "<h2>My Portfolios</h2>$portfolio_table";
   }
+
+  
+#
+ # for (my $i=0; $i < @my_portfolios;$i++){
+  #     print "".escapeHTML($my_portfolios[$i]);
+  #}
 
 }
   
+
+if($action eq "add_user"){
+  if(!$run){
+    print start_form(-name=>"AddUser"),
+      h2("Add New User"),
+        "Username: ", textfield(-name=>'username'),
+          p,
+           "Password: ", password_field(-name=>'password'),
+             p,
+               hidden(-name=>'run',-default=>['1']),
+                 hidden(-name=>'act',-default=>["add_user"]),
+                   submit,
+                     end_form,
+                       hr;
+  } else{
+    my $username = param('username');
+    my $password = param('password');
+    my $error;
+    $error = AddUser($username, $password);
+    if ($error){
+      print "Can't add user because: $error";
+    }
+    else {
+      print "Added $username successfully";
+    }
+  }
+  print "<p><a href='portfolio.pl?act=base&run=1'>Return to Home page</a></p>";
+}
 
 if($action eq "add_portfolio"){
   if(!$run){
@@ -347,7 +386,7 @@ if($action eq "add_portfolio"){
       print "Can't add portfolio because: $error";
     }
     else {
-      print "Added $portfolio_name with $ $cash successfully";
+      print "Added $portfolio_name with $cash successfully";
     }
   }
   print "<p><a href='portfolio.pl?act=base&run=1'>Return to Home page</a></p>";
@@ -510,6 +549,20 @@ print end_html;
 #
 
 
+sub PortfolioTable{
+  my @rows; 
+  eval { @rows = ExecSQL($dbuser, $dbpasswd, "select portfolio_name, cash from portfolios where account_name=?", undef,@_); }; 
+  if ($@) { 
+    return (undef,$@);
+  } else {
+    return (MakeTable("portfolio_table",
+                      "2D",
+                     ["Portfolio Name", "Cash"],
+                     @rows),$@);
+  }
+}
+
+
 sub Committees {
 	my ($latne,$longne,$latsw,$longsw,$cycle,$format) = @_;
 	my @cycle_list = split /,/, $cycle;  
@@ -645,54 +698,33 @@ sub UserTable {
   }
 }
 
-
+sub AddUser {
+  eval { ExecSQL($dbuser,$dbpasswd,
+		"insert into accounts (account_name, password) values (?,?)",undef,@_);};
+  return $@;
+}
 
 # AddPortfolio($account_name, $portfolio_name, $cash)
 sub AddPortfolio {
   eval {ExecSQL($dbuser,$dbpasswd,
 		"insert into portfolios (account_name, portfolio_name, cash) values (?,?,?)",undef,@_);};  
+  return $@;
 }
 
-# DropPortfolio($account_name, $portfolio_name)
-sub DropPortfolio {
+# DeletePortfolio($account_name, $portfolio_name)
+sub DeletePortfolio {
   eval {ExecSQL($dbuser,$dbpasswd,
 		"delete from portfolios where account_name=? and portfolio_name=?",undef,@_);};
+  return $@;
 }
 
 # BuyStock($account_name, $portfolio_name, $symbol, $volume)
 sub BuyStock {
   eval {ExecSQL($dbuser,$dbpasswd,
 		"insert into stock_holdings (account_name, portfolio_name, symbol, volume) values (?,?,?,?)",undef,@_);};
-}
-
-sub UserAdd { 
-  eval { ExecSQL($dbuser,$dbpasswd,
-		 "insert into rwb_users (name,password,email,referer) values (?,?,?,?)",undef,@_);};
   return $@;
 }
 
-sub InsertOpinion{
-  
-  eval { ExecSQL($dbuser,$dbpasswd,
-		 "insert into rwb_opinions (submitter,color,latitude,longitude) values (?,?,?,?)",undef,@_);};
-  return $@;
-}
-
-#InsertInvitee($name, $email, $user)
-#helper function for UserInvite
-sub InsertInvitee{
-  
-  eval { ExecSQL($dbuser,$dbpasswd,
-		 "insert into rwb_invitees (name,id,email,referer) values (?,?,?,?)",undef,@_);};
-  return $@;
-}
-
-sub InsertInviteePermissions{
-  
-  eval { ExecSQL($dbuser,$dbpasswd,
-		 "insert into rwb_invitee_permissions (name,email,id,action) values (?,?,?,?)",undef,@_);};
-  return $@;
-}
 
 sub ValidUser {
   my ($user,$password)=@_;
