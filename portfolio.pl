@@ -254,7 +254,10 @@ print "<style type=\"text/css\">\n\@import \"portfolio.css\";\n</style>\n";
 
 print "<center>" if !$debug;
 
-
+print "<a href='sql_specs/portfolio-er.html'>ER Diagram</a> | ";
+print "<a href='sql_specs/sql_ddl.txt'>SQL DDL</a> | ";
+print "<a href='sql_specs/sql_dml_dql.txt'>SQL DML and DQL</a> | ";
+print "<a href='sql_specs/relational_design.html'>Relational Design</a><br/>";
 #
 #
 # The remainder here is essentially a giant switch statement based
@@ -275,6 +278,7 @@ if ($action eq "back_to_login"){
     print "<p><a href='portfolio.pl?act=login'>Log back in</a></p>";
 }
 if ($action eq "login") { 
+  
   if ($logincomplain and $user ne "anon") { 
     print "Login failed.  Try again.<p>"
   } 
@@ -289,6 +293,8 @@ if ($action eq "login") {
 		  end_form;
     print "<p><a href='portfolio.pl?act=add_user'>Register</a></p>";
   }
+  
+
 }
 
 
