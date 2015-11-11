@@ -329,6 +329,7 @@ if ($action eq "base") {
   print "<a href='portfolio.pl?act=buy_stock'>Buy Stock</a> | ";
   print "<a href='portfolio.pl?act=sell_stock'>Sell Stock</a> | ";
   print "<a href='portfolio.pl?act=add_stock_info'>Add Stock Info</a> | ";
+  print "<a href='portfolio.pl?act=deposit_cash'>Deposit Cash</a> | ";
   print "<a href='portfolio.pl?act=withdraw_cash'>Withdraw Cash</a> | ";
   print "<a href='portfolio.pl?act=logout&run=1'>Logout</a></p>";
 
@@ -557,10 +558,41 @@ if($action eq "add_stock_info"){
 }
 
 
+if($action eq "deposit_cash"){
+  if(!$run){
+    print start_form(-name=>"DepositCash"),
+      h2("Deposit Cash"),
+       "Portfolio: ", textfield(-name=>'portfolio'),p,
+        "Amount to Deposit ", textfield(-name=>'amt'),p,
+             hidden(-name=>'run',-default=>['1']),
+               hidden(-name=>'act',-default=>["deposit_cash"]),
+                 submit,
+                   end_form,
+                     hr;
+  } else{
+    my $portfolio = param('portfolio');
+    my $deposit_amt = param('amt');
+    if(ValidPortfolio($user,$portfolio)){
+      my $current_amt = AmountOfCash($user,$portfolio);
+      my $error;
+      $error = DepositCash($user,$portfolio,$deposit_amt+$current_amt);
+      if ($error){
+        print "Can't deposit $deposit_amt because: $error";
+      }
+      else {
+        print "Deposited $deposit_amt into $portfolio successfully";
+      }
+    }
+    else{
+      print "$portfolio is not a valid portfolio.";
+    }
+  }
+  print "<p><a href='portfolio.pl?act=base&run=1'>Return to Home page</a></p>";
+}
 
 if($action eq "withdraw_cash"){
   if(!$run){
-    print start_form(-name=>"SellStock"),
+    print start_form(-name=>"WithdrawCash"),
       h2("Withdraw Cash"),
        "Portfolio: ", textfield(-name=>'portfolio'),p,
         "Amount to Withdraw ", textfield(-name=>'amt'),p,
@@ -572,21 +604,25 @@ if($action eq "withdraw_cash"){
   } else{
     my $portfolio = param('portfolio');
     my $withdraw_amt = param('amt');
-
-    my $current_amt = AmountOfCash($user,$portfolio);
-    if ($current_amt > -1){
-      if ($current_amt-$withdraw_amt < 0){
-        print "<p>Withdrawing $current_amt because withdrawing amount is too large.</p>";
-        $withdraw_amt = $current_amt;
+    if(ValidPortfolio($user,$portfolio)){
+      my $current_amt = AmountOfCash($user,$portfolio);
+      if ($current_amt > -1){
+        if ($current_amt-$withdraw_amt < 0){
+          print "<p>Withdrawing $current_amt because withdrawing amount is too large.</p>";
+          $withdraw_amt = $current_amt;
+        }
+      }
+      my $error;
+      $error = WithdrawCash($user,$portfolio,$current_amt-$withdraw_amt);
+      if ($error){
+        print "Can't withdraw $withdraw_amt because: $error";
+      }
+      else {
+        print "Withdrew $withdraw_amt from $portfolio successfully";
       }
     }
-    my $error;
-    $error = WithdrawCash($user,$portfolio,$current_amt-$withdraw_amt);
-    if ($error){
-      print "Can't withdraw $withdraw_amt because: $error";
-    }
-    else {
-      print "Withdrew $withdraw_amt from $portfolio successfully";
+    else{
+      print "$portfolio is not a valid portfolio.";
     }
   }
   print "<p><a href='portfolio.pl?act=base&run=1'>Return to Home page</a></p>";
@@ -715,6 +751,12 @@ sub SellStock {
   return $@;
 }
 
+sub DepositCash {
+  my ($user, $portfolio_name, $amt) = @_;
+  eval {ExecSQL($dbuser,$dbpasswd,
+		"update portfolios set cash = ? where account_name=? and portfolio_name=?",undef,$amt,$user,$portfolio_name);};
+  return $@;
+}
 sub WithdrawCash {
   my ($user, $portfolio_name, $amt) = @_;
   eval {ExecSQL($dbuser,$dbpasswd,
