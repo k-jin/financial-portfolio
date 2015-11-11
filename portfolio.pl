@@ -323,6 +323,7 @@ if ($action eq "base") {
   print "<a href='portfolio.pl?act=buy_stock'>Buy Stock</a> | ";
   print "<a href='portfolio.pl?act=sell_stock'>Sell Stock</a> | ";
   print "<a href='portfolio.pl?act=add_stock_info'>Add Stock Info</a> | ";
+  print "<a href='portfolio.pl?act=withdraw_cash'>Withdraw Cash</a> | ";
   print "<a href='portfolio.pl?act=logout&run=1'>Logout</a></p>";
 
   my ($portfolio_table,$error);
@@ -495,14 +496,13 @@ if($action eq "sell_stock"){
 
     my $current_volume = VolumeOfStock($user,$portfolio,$symbol);
     if ($current_volume > -1){
-      if ($current_volume < $selling_volume){
+      if ($current_volume-$selling_volume < 0){
         print "<p>Selling $current_volume because selling volume is too large.</p>";
         $selling_volume = $current_volume;
       }
     }
-
     my $error;
-    $error = SellStock($user,$portfolio,$symbol,$selling_volume);
+    $error = SellStock($user,$portfolio,$symbol,$current_volume-$selling_volume);
     if ($error){
       print "Can't sell stock because: $error";
     }
@@ -549,6 +549,44 @@ if($action eq "add_stock_data"){
   }
   print "<p><a href='portfolio.pl?act=base&run=1'>Return to Home page</a></p>";
 }
+
+
+
+if($action eq "withdraw_cash"){
+  if(!$run){
+    print start_form(-name=>"SellStock"),
+      h2("Withdraw Cash"),
+       "Portfolio: ", textfield(-name=>'portfolio'),p,
+        "Amount to Withdraw ", textfield(-name=>'amt'),p,
+             hidden(-name=>'run',-default=>['1']),
+               hidden(-name=>'act',-default=>["withdraw_cash"]),
+                 submit,
+                   end_form,
+                     hr;
+  } else{
+    my $portfolio = param('portfolio');
+    my $withdraw_amt = param('amt');
+
+    my $current_amt = AmountOfCash($user,$portfolio);
+    if ($current_amt > -1){
+      if ($current_amt-$withdraw_amt < 0){
+        print "<p>Withdrawing $current_amt because withdrawing amount is too large.</p>";
+        $withdraw_amt = $current_amt;
+      }
+    }
+    my $error;
+    $error = WithdrawCash($user,$portfolio,$current_amt-$withdraw_amt);
+    if ($error){
+      print "Can't withdraw $withdraw_amt because: $error";
+    }
+    else {
+      print "Withdrew $withdraw_amt from $portfolio successfully";
+    }
+  }
+  print "<p><a href='portfolio.pl?act=base&run=1'>Return to Home page</a></p>";
+}
+
+
 # Debugging output is the last thing we show, if it is set
 
 
@@ -671,6 +709,12 @@ sub SellStock {
   return $@;
 }
 
+sub WithdrawCash {
+  my ($user, $portfolio_name, $amt) = @_;
+  eval {ExecSQL($dbuser,$dbpasswd,
+		"update portfolios set cash = ? where account_name=? and portfolio_name=?",undef,$amt,$user,$portfolio_name);};
+  return $@;
+}
 # AddStockInfo($symbol, $timestamp, $open, $high, $low, $close, $volume)
 sub AddStockInfo {
   eval {ExecSQL($dbuser,$dbpasswd,
@@ -730,6 +774,17 @@ sub VolumeOfStock {
   my ($user,$portfolio,$symbol) = @_;
   my @col;
   eval {@col=ExecSQL($dbuser,$dbpasswd, "select volume from stock_holdings where account_name=? and portfolio_name = ? and symbol=?","COL",$user,$portfolio,$symbol);};
+  if ($@) { 
+    return -1;
+  } else {
+    return $col[0];
+  }
+}
+
+sub AmountOfCash {
+  my ($user,$portfolio) = @_;
+  my @col;
+  eval {@col=ExecSQL($dbuser,$dbpasswd, "select cash from portfolios where account_name=? and portfolio_name = ?","COL",$user,$portfolio);};
   if ($@) { 
     return -1;
   } else {
@@ -982,13 +1037,13 @@ BEGIN {
 
   $ENV{PORTF_DBMS}="oracle";
   $ENV{PORTF_DB}="cs339";
-  $ENV{PORTF_DBUSER}="kqj094";
-  $ENV{PORTF_DBPASS}="zjsmqM31Y";
+  $ENV{PORTF_DBUSER}="jrp338";
+  $ENV{PORTF_DBPASS}="zp97npGDx";
   
-  $dbms = $ENV{'PORTF_DBMS'};
-  $user = $ENV{'PORTF_DBUSER'};
-  $pass = $ENV{'PORTF_DBPASS'};
-  $db   = $ENV{'PORTF_DB'};
+  #$dbms = $ENV{'PORTF_DBMS'};
+  #$user = $ENV{'PORTF_DBUSER'};
+  #$pass = $ENV{'PORTF_DBPASS'};
+  #$db   = $ENV{'PORTF_DB'};
  
   $ENV{PATH}=$ENV{PATH}.":.";  
 
