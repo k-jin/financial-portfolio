@@ -722,6 +722,23 @@ sub DeletePortfolio {
 sub BuyStock {
   eval {ExecSQL($dbuser,$dbpasswd,
 		"insert into stock_holdings (account_name, portfolio_name, symbol, volume) values (?,?,?,?)",undef,@_);};
+}
+
+# SellStock($account_name, $portfolio_name, $symbol)
+sub SellStock {
+  eval {ExecSQL($dbuser,$dbpasswd,
+		"delete from stock_holdings where account_name=? and portfolio_name=? and symbol=?",undef,@_);};
+}
+
+# AddStockInfo($symbol, $timestamp, $open, $high, $low, $close, $volume)
+sub AddStockInfo {
+  eval {ExecSQL($dbuser,$dbpasswd,
+		"insert into stock_infos (symbol, timestamp, open, high, low, close, volume) values (?,?,?,?,?,?,?)",undef,@_);};
+}
+
+sub UserAdd { 
+  eval { ExecSQL($dbuser,$dbpasswd,
+		 "insert into rwb_users (name,password,email,referer) values (?,?,?,?)",undef,@_);};
   return $@;
 }
 
