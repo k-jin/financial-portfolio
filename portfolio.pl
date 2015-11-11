@@ -86,6 +86,7 @@ my $outputdebugcookiecontent = undef;
 my $deletecookie=0;
 my $user = undef;
 my $password = undef;
+#my $curr_portfolio_name = undef;
 my $logincomplain=0;
 
 #
@@ -271,7 +272,7 @@ print "<center>" if !$debug;
 #
 #
 if ($action eq "back_to_login"){ 
-    print "<p><a href='portfolio.pl'>Log back in</a></p>";
+    print "<p><a href='portfolio.pl?act=login'>Log back in</a></p>";
 }
 if ($action eq "login") { 
   if ($logincomplain and $user ne "anon") { 
@@ -315,23 +316,20 @@ if ($action eq "base") {
     print "<div id=\"data\" style=\"display: none;\"></div>";
   }
 
-  print "<h1>My Portfolio</h1>";
+  print "<h1>My Portfolios</h1>";
   print "<p>";
-  print "<a href='portfolio.pl?act=add_portfolio'>Add Portfolio | </a>";
-  print "<a href='portfolio.pl?act=delete_portfolio'>Delete Portfolio | </a>";
+  print "<a href='portfolio.pl?act=add_portfolio'>Add Portfolio</a> | ";
+  print "<a href='portfolio.pl?act=delete_portfolio'>Delete Portfolio</a> | ";
+  print "<a href='portfolio.pl?act=buy_stock'>Buy Stock</a> | ";
+  print "<a href='portfolio.pl?act=sell_stock'>Sell Stock</a> | ";
+  print "<a href='portfolio.pl?act=add_stock_info'>Add Stock Info</a> | ";
   print "<a href='portfolio.pl?act=logout&run=1'>Logout</a></p>";
 
   my ($portfolio_table,$error);
   ($portfolio_table,$error)=PortfolioTable($user);
   if(!$error){
-    print "<h2>My Portfolios</h2>$portfolio_table";
+    print "$portfolio_table";
   }
-
-  
-#
- # for (my $i=0; $i < @my_portfolios;$i++){
-  #     print "".escapeHTML($my_portfolios[$i]);
-  #}
 
 }
   
@@ -417,10 +415,44 @@ if($action eq "delete_portfolio"){
   print "<p><a href='portfolio.pl?act=base&run=1'>Return to Home page</a></p>";
 }
 
+#we know we are looking at a portfolio
+if (index($action,"portfolio_")!=-1){
+  my $curr_portfolio_name = substr($action,10,length($action)-10);
+  if(ValidPortfolio($user,$curr_portfolio_name)){
+    print "<h2>$curr_portfolio_name</h2>";
+    
+    my ($portfolio_cash_table,$error1);
+    ($portfolio_cash_table,$error1)=PortfolioCashTable($user,$curr_portfolio_name);
+    if(!$error1){
+      print "$portfolio_cash_table";
+    }
+    else{
+      print "<p>$error1</p>";
+    }
+    
+    my ($portfolio_stocks_table,$error2);
+    ($portfolio_stocks_table,$error2) = PortfolioStocksTable($user,$curr_portfolio_name); 
+    if(!$error2){
+      print "$portfolio_stocks_table";
+    }
+    else{
+      print "<p>$error2</p>";
+    }
+  }
+  else{
+    print "$curr_portfolio_name is not a valid portfolio of $user. Please try again.";
+  }
+  print "<p><a href='portfolio.pl?act=base&run=1'>Return to Home page</a></p>";
+}
+
+
+
+
 if($action eq "buy_stock"){
   if(!$run){
     print start_form(-name=>"BuyStock"),
       h2("Buy Stock"),
+       "Portfolio: ", textfield(-name=>'portfolio'),p,
         "Symbol: ", textfield(-name=>'symbol'),p,
            "Volume: ", textfield(-name=>'volume'),p,
              hidden(-name=>'run',-default=>['1']),
@@ -431,13 +463,14 @@ if($action eq "buy_stock"){
   } else{
     my $symbol = param('symbol');
     my $volume = param('volume');
+    my $portfolio = param('portfolio');
     my $error;
-    $error = BuyStock($user,$symbol,$volume);
+    $error = BuyStock($user,$portfolio,$symbol,$volume);
     if ($error){
       print "Can't buy stock because: $error";
     }
     else {
-      print "Bought $volume shares of $symbol successfully";
+      print "Bought $volume shares of $symbol for $portfolio successfully";
     }
   }
   print "<p><a href='portfolio.pl?act=base&run=1'>Return to Home page</a></p>";
@@ -447,6 +480,7 @@ if($action eq "sell_stock"){
   if(!$run){
     print start_form(-name=>"SellStock"),
       h2("Sell Stock"),
+       "Portfolio: ", textfield(-name=>'portfolio'),p,
         "Symbol: ", textfield(-name=>'symbol'),p,
           "Volume: ", textfield(-name=>'volume'),p,
              hidden(-name=>'run',-default=>['1']),
@@ -456,14 +490,24 @@ if($action eq "sell_stock"){
                      hr;
   } else{
     my $symbol = param('symbol');
-    my $volume = param('volume');
+    my $selling_volume = param('volume');
+    my $portfolio = param('portfolio');
+
+    my $current_volume = VolumeOfStock($user,$portfolio,$symbol);
+    if ($current_volume > -1){
+      if ($current_volume < $selling_volume){
+        print "<p>Selling $current_volume because selling volume is too large.</p>";
+        $selling_volume = $current_volume;
+      }
+    }
+
     my $error;
-    $error = SellStock($user,$symbol,$volume);
+    $error = SellStock($user,$portfolio,$symbol,$selling_volume);
     if ($error){
       print "Can't sell stock because: $error";
     }
     else {
-      print "Sold $volume shares of $symbol successfully";
+      print "Sold $selling_volume shares of $symbol successfully";
     }
   }
   print "<p><a href='portfolio.pl?act=base&run=1'>Return to Home page</a></p>";
@@ -551,152 +595,46 @@ print end_html;
 
 sub PortfolioTable{
   my @rows; 
-  eval { @rows = ExecSQL($dbuser, $dbpasswd, "select portfolio_name, cash from portfolios where account_name=?", undef,@_); }; 
+  eval { @rows = ExecSQL($dbuser, $dbpasswd, "select portfolio_name from portfolios where account_name=?", undef,@_); }; 
+  if ($@) { 
+    return (undef,$@);
+  } else {
+    return (MakeLinkedTable("portfolio_table",
+                      "2D",
+                     ["Portfolio Name"],
+                     @rows),$@);
+  }
+}
+
+#account_name, portfolio_name
+sub PortfolioCashTable{
+  my @rows; 
+  eval { @rows = ExecSQL($dbuser, $dbpasswd, "select cash from portfolios where account_name=? and portfolio_name=?", undef,@_); }; 
   if ($@) { 
     return (undef,$@);
   } else {
     return (MakeTable("portfolio_table",
                       "2D",
-                     ["Portfolio Name", "Cash"],
+                     ["Cash"],
+                     @rows),$@);
+  }
+}
+#account_name, portfolio_name
+sub PortfolioStocksTable{
+  my @rows; 
+  eval { @rows = ExecSQL($dbuser, $dbpasswd, "select symbol,volume from stock_holdings where account_name=? and portfolio_name=?", undef,@_); }; 
+  if ($@) { 
+    return (undef,$@);
+  } else {
+    return (MakeTable("portfolio_table",
+                      "2D",
+                     ["Symbol","Volume"],
                      @rows),$@);
   }
 }
 
 
-sub Committees {
-	my ($latne,$longne,$latsw,$longsw,$cycle,$format) = @_;
-	my @cycle_list = split /,/, $cycle;  
 
-	my $c = "";
-	for(my $i=0; $i < @cycle_list; $i += 1){
-		$c = join "", $c, "?,";
-	}
-	$c = substr($c, 0, -1);
-	my @rows;
-	my $sql_statement = join "","select latitude, longitude, cmte_nm, cmte_pty_affiliation, cmte_st1, cmte_st2, cmte_city, cmte_st, cmte_zip, cycle from cs339.committee_master natural join cs339.cmte_id_to_geo where cycle in(",$c, ") and latitude>? and latitude<? and longitude>? and longitude<?"; 
-  eval { 
-   @rows = ExecSQL($dbuser, $dbpasswd, $sql_statement,undef,@cycle_list,$latsw,$latne,$longsw,$longne);
- };
-  
-  if ($@) { 
-    return (undef,$@);
-  } else {
-    if ($format eq "table") { 
-      return (MakeTable("committee_data","2D",
-			["latitude", "longitude", "name", "party", "street1", "street2", "city", "state", "zip"],
-			@rows),$@);
-    } else {
-      return (MakeRaw("committee_data","2D",@rows),$@);
-    }
-  }
-}
-
-# Generate a table of nearby candidates
-# ($table|$raw,$error) = Committees(latne,longne,latsw,longsw,cycle,format)
-# $error false on success, error string on failure
-#
-sub Candidates {
-  my ($latne,$longne,$latsw,$longsw,$cycle,$format) = @_;
-  my @rows;
-  eval {  
-    @rows = ExecSQL($dbuser, $dbpasswd, "select latitude, longitude, cand_name, cand_pty_affiliation, cand_st1, cand_st2, cand_city, cand_st, cand_zip from cs339.candidate_master natural join cs339.cand_id_to_geo where cycle=? and latitude>? and latitude<? and longitude>? and longitude<?",undef,$cycle,$latsw,$latne,$longsw,$longne);
-  };
-  
-  if ($@) { 
-    return (undef,$@);
-  } else {
-    if ($format eq "table") {
-      return (MakeTable("candidate_data", "2D",
-                        ["latitude", "longitude", "name", "party", "street1", "street2", "city", "state", "zip"],                       
-                        @rows),$@);
-    } else { 
-      return (MakeRaw("candidate_data","2D",@rows),$@);
-    }
-  }
-}
-
-
-#
-# Generate a table of nearby individuals
-#
-# Note that the handout version does not integrate the crowd-sourced data
-#
-# ($table|$raw,$error) = Individuals(latne,longne,latsw,longsw,cycle,format)
-# $error false on success, error string on failure
-#
-sub Individuals {
-  my ($latne,$longne,$latsw,$longsw,$cycle,$format) = @_;
-  
-  my @cycle_list = split /,/, $cycle;  
-  my $c = "";
-  for(my $i=0; $i < @cycle_list; $i += 1){
-	$c = join "", $c, "?,";
-  }
-  $c = substr($c, 0, -1);
-  my @rows;
-  my $sql_statement = join "",  "select latitude, longitude, cmte_nm, cmte_pty_affiliation, cmte_st1, cmte_st2, cmte_city, cmte_st, cmte_zip, cycle from cs339.committee_master natural join cs339.cmte_id_to_geo where cycle in(",$c, ") and latitude>? and latitude<? and longitude>? and longitude<?"; 
-  eval { 
-   @rows = ExecSQL($dbuser, $dbpasswd, $sql_statement, undef, @cycle_list, $latsw,$latne,$longsw, $longne);
-  };
-  
-  if ($@) { 
-    return (undef,$@);
-  } else {
-    if ($format eq "table") { 
-      return (MakeTable("individual_data", "2D",
-			["latitude", "longitude", "name", "city", "state", "zip", "employer", "amount"],
-			@rows),$@);
-    } else {
-      return (MakeRaw("individual_data","2D",@rows),$@);
-    }
-  }
-}
-
-
-#
-# Generate a table of nearby opinions
-#
-# ($table|$raw,$error) = Opinions(latne,longne,latsw,longsw,cycle,format)
-# $error false on success, error string on failure
-#
-sub Opinions {
-  my ($latne, $longne, $latsw, $longsw, $cycle,$format) = @_;
-  my @rows;
-  eval { 
-    @rows = ExecSQL($dbuser, $dbpasswd, "select latitude, longitude, color from rwb_opinions where latitude>? and latitude<? and longitude>? and longitude<?",undef,$latsw,$latne,$longsw,$longne);
-  };
-  
-  if ($@) { 
-    return (undef,$@);
-  } else {
-    if ($format eq "table") { 
-      return (MakeTable("opinion_data","2D",
-			["latitude", "longitude", "name", "city", "state", "zip", "employer", "amount"],
-			@rows),$@);
-    } else {
-      return (MakeRaw("opinion_data","2D",@rows),$@);
-    }
-  }
-}
-
-
-#
-# Generate a table of users
-# ($table,$error) = UserTable()
-# $error false on success, error string on failure
-#
-sub UserTable {
-  my @rows;
-  eval { @rows = ExecSQL($dbuser, $dbpasswd, "select name, email from rwb_users order by name"); }; 
-  if ($@) { 
-    return (undef,$@);
-  } else {
-    return (MakeTable("user_table",
-		      "2D",
-		     ["Name", "Email"],
-		     @rows),$@);
-  }
-}
 
 sub AddUser {
   eval { ExecSQL($dbuser,$dbpasswd,
@@ -721,19 +659,23 @@ sub DeletePortfolio {
 # BuyStock($account_name, $portfolio_name, $symbol, $volume)
 sub BuyStock {
   eval {ExecSQL($dbuser,$dbpasswd,
-		"insert into stock_holdings (account_name, portfolio_name, symbol, volume) values (?,?,?,?)",undef,@_);};
+		"insert into stock_holdings (account_name, portfolio_name, symbol, volume) values (?,?,?,?)","COL",@_);};
+  return $@;
 }
 
 # SellStock($account_name, $portfolio_name, $symbol)
 sub SellStock {
+  my ($user, $portfolio_name, $symbol, $volume) = @_;
   eval {ExecSQL($dbuser,$dbpasswd,
-		"delete from stock_holdings where account_name=? and portfolio_name=? and symbol=?",undef,@_);};
+		"update stock_holdings set volume = ? where account_name=? and portfolio_name=? and symbol=?",undef,$volume,$user,$portfolio_name,$symbol);};
+  return $@;
 }
 
 # AddStockInfo($symbol, $timestamp, $open, $high, $low, $close, $volume)
 sub AddStockInfo {
   eval {ExecSQL($dbuser,$dbpasswd,
 		"insert into stock_infos (symbol, timestamp, open, high, low, close, volume) values (?,?,?,?,?,?,?)",undef,@_);};
+  return $@;
 }
 
 sub UserAdd { 
@@ -743,21 +685,20 @@ sub UserAdd {
 }
 
 
+sub ValidPortfolio {
+  my ($valid_user,$valid_password)=@_;
+  my @col;
+  eval {@col=ExecSQL($dbuser,$dbpasswd, "select count(*) from portfolios where account_name=? and portfolio_name=?","COL",$valid_user,$valid_password);};
+  if ($@) { 
+    return 0;
+  } else {
+    return $col[0]>0;
+  }
+}
 sub ValidUser {
-  my ($user,$password)=@_;
+  my ($valid_user2,$valid_password2)=@_;
   my @col;
-  eval {@col=ExecSQL($dbuser,$dbpasswd, "select count(*) from accounts where account_name=? and password=?","COL",$user,$password);};
-  if ($@) { 
-    return 0;
-  } else {
-    return $col[0]>0;
-  }
-}
-sub ValidUserNoPass {
-
-  my ($user,$email)=@_;
-  my @col;
-  eval {@col=ExecSQL($dbuser,$dbpasswd, "select count(*) from rwb_users where name=? and email = ?","COL",$user,$email);};
+  eval {@col=ExecSQL($dbuser,$dbpasswd, "select count(*) from accounts where account_name=? and password = ?","COL",$valid_user2,$valid_password2);};
   if ($@) { 
     return 0;
   } else {
@@ -765,6 +706,17 @@ sub ValidUserNoPass {
   }
 }
 
+
+sub VolumeOfStock {
+  my ($user,$portfolio,$symbol) = @_;
+  my @col;
+  eval {@col=ExecSQL($dbuser,$dbpasswd, "select volume from stock_holdings where account_name=? and portfolio_name = ? and symbol=?","COL",$user,$portfolio,$symbol);};
+  if ($@) { 
+    return -1;
+  } else {
+    return $col[0];
+  }
+}
 # Given a list of scalars, or a list of references to lists, generates
 # an html table
 #
@@ -821,6 +773,55 @@ sub MakeTable {
   }
   return $out;
 }
+
+
+
+sub MakeLinkedTable {
+  my ($id,$type,$headerlistref,@list)=@_;
+  my $out;
+  #
+  # Check to see if there is anything to output
+  #
+  if ((defined $headerlistref) || ($#list>=0)) {
+    # if there is, begin a table
+    #
+    $out="<table id=\"$id\" border>";
+    #
+    # if there is a header list, then output it in bold
+    #
+    if (defined $headerlistref) { 
+      $out.="<tr>".join("",(map {"<td><b>$_</b></td>"} @{$headerlistref}))."</tr>";
+    }
+    #
+    # If it's a single row, just output it in an obvious way
+    #
+    if ($type eq "ROW") { 
+      #
+      # map {code} @list means "apply this code to every member of the list
+      # and return the modified list.  $_ is the current list member
+      #
+      $out.="<tr>".(map {defined($_) ? "<td>$_</td>" : "<td>(null)</td>" } @list)."</tr>";
+    } elsif ($type eq "COL") { 
+      #
+      # ditto for a single column
+      #
+      $out.=join("",map {defined($_) ? "<tr><td>$_</td></tr>" : "<tr><td>(null)</td></tr>"} @list);
+    } else { 
+      #
+      # For a 2D table, it's a bit more complicated...
+      #
+      $out.= join("",map {"<tr>$_</tr>"} (map {join("",map {defined($_) ? "<td><a href='portfolio.pl?act=portfolio_$_'>$_</a></td>" : "<td>(null)</td>"} @{$_})} @list));
+    }
+    $out.="</table>";
+  } else {
+    # if no header row or list, then just say none.
+    $out.="(none)";
+  }
+  return $out;
+}
+
+
+
 
 
 #
