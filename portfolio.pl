@@ -514,7 +514,7 @@ if($action eq "sell_stock"){
 }
 
 
-if($action eq "add_stock_data"){
+if($action eq "add_stock_info"){
   if(!$run){
     print start_form(-name=>"AddStockInfo"),
       h2("Add Stock Info"),
@@ -526,7 +526,7 @@ if($action eq "add_stock_data"){
              "Close: ", textfield(-name=>'close'),p,
               "Volume: ", textfield(-name=>'volume'),p,
              hidden(-name=>'run',-default=>['1']),
-               hidden(-name=>'act',-default=>["add_stock_data"]),
+               hidden(-name=>'act',-default=>["add_stock_info"]),
                  submit,
                    end_form,
                      hr;
@@ -539,7 +539,7 @@ if($action eq "add_stock_data"){
     my $close = param('close');
     my $volume = param('volume');
     my $error;
-    $error = AddStockInfo($timestamp,$symbol,$open,$high,$low,$close,$volume);
+    $error = AddStockInfo($symbol,$timestamp,$open,$high,$low,$close,$volume);
     if ($error){
       print "Can't add stock info because: $error";
     }
