@@ -17,9 +17,6 @@ my @sqloutput=();
 #
 use strict;
 use warnings;
-#use MIME::LITE::TT:HTML;
-#use Email::MIME;
-
 # The CGI web generation stuff
 # This helps make it easy to generate active HTML content
 # from Perl
@@ -233,7 +230,6 @@ print header(-expires=>'now', -cookie=>\@outputcookies);
 # Now we finally begin generating back HTML
 #
 #
-#print start_html('Red, White, and Blue');
 print "<html style=\"height: 100\%\">";
 print "<head>";
 print "<title>Financial Portfolio</title>";
@@ -254,6 +250,7 @@ print "<style type=\"text/css\">\n\@import \"portfolio.css\";\n</style>\n";
 
 print "<center>" if !$debug;
 
+print "<a href='sql_specs/flow_diagram.html'>Flow Diagram</a> | ";
 print "<a href='sql_specs/portfolio-er.html'>ER Diagram</a> | ";
 print "<a href='sql_specs/sql_ddl.txt'>SQL DDL</a> | ";
 print "<a href='sql_specs/sql_dml_dql.txt'>SQL DML and DQL</a> | ";
@@ -485,17 +482,14 @@ if($action eq "buy_stock"){
         print "You do not have enough cash in $portfolio to buy $volume shares of $symbol.";
       }
       else{
-	print "2\t";
-	
+	#print "2\t";
         my @curr_stock_num = VolumeOfStock($user,$portfolio,$symbol);
         print "$curr_stock_num[0] \t";
-	if($curr_stock_num[0] >-1){
-          
-          $errorBuy = BuyStockUpdate($user,$portfolio,$symbol,$volume+$curr_stock_num[0]);
+	$errorBuy = BuyStockInsert($user,$portfolio,$symbol,$volume);
+	if($errorBuy) {
+		$errorBuy = BuyStockUpdate($user,$portfolio,$volume+$curr_stock_num[0]);
         }
-        else{
-          $errorBuy = BuyStockInsert($user,$portfolio,$symbol,$volume);
-        }
+
         $errorWithdraw = WithdrawCash($user,$portfolio,$current_amt-$needed_amt); 
         if ($errorBuy){
           print "Can't buy stock because: $errorBuy";
@@ -705,17 +699,6 @@ if ($debug) {
 
 print end_html;
 
-#
-# The main line is finished at this point. 
-# The remainder includes utilty and other functions
-#
-
-
-#
-# Generate a table of nearby committees
-# ($table|$raw,$error) = Committees(latne,longne,latsw,longsw,cycle,format)
-# $error false on success, error string on failure
-#
 
 
 sub PortfolioTable{
@@ -778,6 +761,15 @@ sub AddPortfolio {
 sub DeletePortfolio {
   eval {ExecSQL($dbuser,$dbpasswd,
 		"delete from portfolios where account_name=? and portfolio_name=?",undef,@_);};
+  return $@;
+}
+
+#BuyStock($account_name, $portfolio_name, $symbol, $volume, $method)
+
+sub BuyStock {
+ 
+  eval {ExecSQL($dbuser,$dbpasswd,
+		"insert into stock_holdings (account_name, portfolio_name, symbol, volume) values (?,?,?,?)","COL",@_);};
   return $@;
 }
 
@@ -866,12 +858,6 @@ sub MostRecentPrice {
   return $close_price[0];
 }
 
-sub UserAdd { 
-  eval { ExecSQL($dbuser,$dbpasswd,
-		 "insert into rwb_users (name,password,email,referer) values (?,?,?,?)",undef,@_);};
-  return $@;
-}
-
 
 sub ValidPortfolio {
   my ($valid_user,$valid_password)=@_;
@@ -898,17 +884,9 @@ sub ValidUser {
 sub VolumeOfStock {
   my ($user,$portfolio,$symbol) = @_;
   my @col;
-  print "user: $user \n portfolio: $portfolio \n symbol: $symbol";
-  eval {@col=ExecSQL($dbuser,$dbpasswd, "select volume from stock_holdings where account_name=? and portfolio_name = ? and symbol=?","ROW",$user,$portfolio,$symbol);};
-  # @col = ExecSQL($dbuser, $dbpasswd,"select volume from stock_holdings where account_name=? and portfolio_name=? and symbol=?","ROW", $user,$portfolio, $symbol);
-  my $boo = defined @col;
 
-  print $boo;
-  print "1 @col \n";
-  print "2 $col[0] \n";
-  print "3 $@ \n";
-  if ($@) { 
-    print "ERROR LOL";
+  eval {@col=ExecSQL($dbuser,$dbpasswd, "select volume from stock_holdings where account_name=? and portfolio_name=? and symbol=?","ROW",$user,$portfolio,$symbol);};
+  if (@col) { 
     return -1;
   } else {
     return $col[0];
@@ -1171,8 +1149,8 @@ BEGIN {
 
   $ENV{PORTF_DBMS}="oracle";
   $ENV{PORTF_DB}="cs339";
-  $ENV{PORTF_DBUSER}="jrp338";
-  $ENV{PORTF_DBPASS}="zp97npGDx";
+  $ENV{PORTF_DBUSER}="kqj094";
+  $ENV{PORTF_DBPASS}="zjsmqM31Y";
   
   #$dbms = $ENV{'PORTF_DBMS'};
   #$user = $ENV{'PORTF_DBUSER'};
