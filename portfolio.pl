@@ -52,8 +52,8 @@ use stock_data_access;
 #
 # You need to override these for access to your database
 #
-my $dbuser="jrp338";
-my $dbpasswd="zp97npGDx";
+my $dbuser="kqj094";
+my $dbpasswd="zjsmqM31Y";
 
 
 #
@@ -478,16 +478,20 @@ if($action eq "buy_stock"){
       my $current_amt = AmountOfCash($user,$portfolio);
       #print "HELLO $symbol";
       my $needed_amt = MostRecentPrice($symbol);
+      #print $needed_amt;
       $needed_amt = $needed_amt*$volume;
-     
+      #print $needed_amt;     
       if($current_amt - $needed_amt < 0){
         print "You do not have enough cash in $portfolio to buy $volume shares of $symbol.";
       }
       else{
-        my $curr_stock_num = VolumeOfStock($user,$portfolio,$symbol);
-        if($curr_stock_num >-1){
+	print "2\t";
+	
+        my @curr_stock_num = VolumeOfStock($user,$portfolio,$symbol);
+        print "$curr_stock_num[0] \t";
+	if($curr_stock_num[0] >-1){
           
-          $errorBuy = BuyStockUpdate($user,$portfolio,$symbol,$volume+$curr_stock_num);
+          $errorBuy = BuyStockUpdate($user,$portfolio,$symbol,$volume+$curr_stock_num[0]);
         }
         else{
           $errorBuy = BuyStockInsert($user,$portfolio,$symbol,$volume);
@@ -793,9 +797,9 @@ sub BuyStockUpdate {
 }
 # SellStock($account_name, $portfolio_name, $symbol)
 sub SellStock {
-  my ($sell_user, $sell_portfolio, $sell_symbol, $sell_volume) = @_;
+  my ($sell_user, $sell_portfolio, $symbol, $sell_volume) = @_;
   eval {ExecSQL($dbuser,$dbpasswd,
-		"update stock_holdings set volume = ? where account_name=? and portfolio_name=? and symbol=?",undef,$sell_volume,$sell_user,$sell_portfolio,$sell_symbol);};
+		"update stock_holdings set volume = ? where account_name=? and portfolio_name=? and symbol=?",undef,$sell_volume,$sell_user,$sell_portfolio,$symbol);};
   return $@;
 }
 
@@ -828,11 +832,25 @@ sub PortfolioStats {
   if (defined $from) {$from=parsedate($from)};
   if (defined $to) {$to=parsedate($to)};
 
-  my $sql = "select count($field), avg($field), min($field), max($field) from (select $field from ".GetStockPrefix()."StocksDaily where symbol='$symbol' union all select $field from stock_infos where symbol='$symbol');";
-  $sql.= "and timestamp >=$from" if $from;
-  $sql.= "and timestamp <=$to" if $to;
+  my $sql = "select count(?), avg(?), stddev(?), min(?), max(?) from ((select ? from cs339.StocksDaily where symbol=?) union all (select ? from stock_infos where symbol=?))";
+  if (defined $from) {$sql.= "and timestamp >=?"};
+  if (defined $to) {$sql.= "and timestamp <=?"};
 
-  my ($n,$mean,$std,$min,$max) = ExecStockSQL("ROW",$sql);
+  my ($n,$mean,$std,$min,$max);
+  if ((defined $to) and (defined $from)) {
+	($n, $mean, $std, $min, $max) = ExecSQL($dbuser, $dbpasswd,$sql,"ROW",$field,$field,$field,$field,$field,$field,$symbol,$field,$symbol,$from,$to);
+}
+  elsif(defined $to) {
+	($n, $mean, $std, $min, $max) = ExecSQL($dbuser, $dbpasswd,$sql,"ROW",$field,$field,$field,$field,$field,$field,$symbol,$field,$symbol,$to);
+}
+  elsif(defined $from) {
+	($n, $mean, $std, $min, $max) = ExecSQL($dbuser, $dbpasswd,$sql,"ROW",$field,$field,$field,$field,$field,$field,$symbol,$field,$symbol,$from);
+}
+  else {
+	($n, $mean, $std, $min, $max) = ExecSQL($dbuser, $dbpasswd,$sql,"ROW",$field,$field,$field,$field,$field,$field,$symbol,$field,$symbol);
+}
+
+
   return ($symbol, $field, $n, $mean, $std, $min, $max, $std/$mean);
   
 }
@@ -840,12 +858,12 @@ sub PortfolioStats {
 # MostRecentPrice($symbol)
 sub MostRecentPrice {
   my $symbol=$_[0];
-  my $timestamp_sql = "select max(timestamp) from (select timestamp from cs339.StocksDaily where symbol=? union all select timestamp from stock_infos where symbol=?)";
-  #my $timestamp = ExecStockSQL("ROW", $timestamp_sql);
-  my $timestamp = ExecSQL($dbuser,$dbpasswd,$timestamp_sql,"COL",$symbol,$symbol);
-  my $sql = "select close from ".GetStockPrefix()."StocksDaily where symbol='$symbol' and timestamp=$timestamp union all select close from stock_infos where symbol='$symbol' and timestamp=$timestamp";
-  my $close_price = ExecStockSQL("ROW", $sql);
-  return $close_price;
+  my $timestamp_sql = "select max(timestamp) from ((select timestamp from cs339.StocksDaily where symbol=?) union all (select timestamp from stock_infos where symbol=?))";
+  my @timestamp = ExecSQL($dbuser,$dbpasswd,$timestamp_sql,"ROW",$symbol,$symbol);
+  my $time = $timestamp[0];
+  my $sql = "select close from ((select close from cs339.StocksDaily where symbol=? and timestamp=?) union all (select close from stock_infos where symbol=? and timestamp=?))";
+  my @close_price = ExecSQL($dbuser,$dbpasswd,$sql,"ROW", $symbol,$time,$symbol,$time);
+  return $close_price[0];
 }
 
 sub UserAdd { 
@@ -880,8 +898,17 @@ sub ValidUser {
 sub VolumeOfStock {
   my ($user,$portfolio,$symbol) = @_;
   my @col;
-  eval {@col=ExecSQL($dbuser,$dbpasswd, "select volume from stock_holdings where account_name=? and portfolio_name = ? and symbol=?","COL",$user,$portfolio,$symbol);};
+  print "user: $user \n portfolio: $portfolio \n symbol: $symbol";
+  eval {@col=ExecSQL($dbuser,$dbpasswd, "select volume from stock_holdings where account_name=? and portfolio_name = ? and symbol=?","ROW",$user,$portfolio,$symbol);};
+  # @col = ExecSQL($dbuser, $dbpasswd,"select volume from stock_holdings where account_name=? and portfolio_name=? and symbol=?","ROW", $user,$portfolio, $symbol);
+  my $boo = defined @col;
+
+  print $boo;
+  print "1 @col \n";
+  print "2 $col[0] \n";
+  print "3 $@ \n";
   if ($@) { 
+    print "ERROR LOL";
     return -1;
   } else {
     return $col[0];
